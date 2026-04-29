@@ -4,19 +4,31 @@ from datetime import datetime
 filename= "committee_data.json"
 member_list={}
 total_collection = 0
+penalty_pool=0
 
 def save_data():
+    data_to_save = {
+        "members": member_list,
+        "penalty_pool": penalty_pool
+    }
     with open(filename,"w") as file:
-        json.dump(member_list,file)
+        json.dump(data_to_save,file)
         print("Data stored successfully")
 
 
 def load_data():
-    global member_list,total_collection
+    global member_list,total_collection,penalty_pool
     if os.path.exists(filename):
         with open(filename,"r") as file:
             data=json.load(file)
-            member_list = {int(k): v for k, v in data.items()}
+            if isinstance(data, dict) and "members" in data:
+                member_list = {int(k): v for k, v in data["members"].items()}
+                penalty_pool = data.get("penalty_pool", 0)
+            else:
+               
+                member_list = {int(k): v for k, v in data.items()}
+                penalty_pool = 0
+           
         temp_total=0
         done_members=0
         for m_id in member_list:
@@ -29,6 +41,7 @@ def load_data():
     else:
         member_list = {}
         total_collection = 0
+        penalty_pool=0
         print("No previous record found. Starting fresh.")
         
         
@@ -78,7 +91,41 @@ def register_new_member():
             print(" gurantor and user id should be different")   
     else:
         print("member name and guarantor name should be in alphabets\n member id and gurantor id should be in didgit")  
-    print("\n" + "-"*40)              
+    print("\n" + "-"*40)   
+
+def delete_member():
+    print("\n" + "-"*40)
+    print("Deleting member")
+    global total_collection,penalty_pool
+    search_id = input("Enter Member ID to delete: ")
+    
+    if search_id.isdigit():
+        search_id = int(search_id)
+        if total_collection>0:
+                
+            
+            if search_id in member_list:
+                m_name = member_list[search_id]['Member_Name']
+                m_balance = member_list[search_id]['balance']
+                if m_balance>0:
+                    refund=2500
+                    penalty_pool+=2500
+                    total_collection-=5000
+                else:
+                    print("member has zero balance so no balance will be add to penalty pool")  
+                del member_list[search_id]
+                save_data()
+                print(f"SUCCESS: {m_name} has been deleted.")
+                print(f'Refund amount {refund} is send to your account')
+                
+            else:
+                print("Member ID NOT FOUND!")
+        else:
+            print("you need to pay this month for leaving committee")        
+
+    else:
+        print("ID should be in digits!")
+    print("-" * 40)      
     
 def show_registered_members():
     print("\n" + "-"*40)
@@ -189,47 +236,50 @@ def delete_payment_record():
     search_id = (input("Enter member id which you want to delete  "))
     if search_id .isdigit():
         search_id=int(search_id)
+        if total_collection>0:
     
-        if search_id in member_list:
-            if "history" in member_list[search_id] and member_list[search_id]["history"]:
-            
-                month_to_del = int(input("enter a month number which you want to del "))
+            if search_id in member_list:
+                if "history" in member_list[search_id] and member_list[search_id]["history"]:
                 
-                if month_to_del >= 1 and month_to_del <=12:
+                    month_to_del = int(input("enter a month number which you want to del "))
+                    
+                    if month_to_del >= 1 and month_to_del <=12:
 
-                    months_map = ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"]
-                    month_to_del = months_map[month_to_del - 1]
-                    if month_to_del in member_list[search_id]["history"]:
-                        p_status = member_list[search_id]["history"][month_to_del]["payment_type"]
-                        if p_status == "late":
-                        
-                            member_list[search_id]["score"] += 10
-                            g_id = member_list[search_id]["gurantor_id"]
-                            if g_id in member_list:
-                                member_list[g_id]["score"] += 3
-                        elif p_status == "ontime":
+                        months_map = ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"]
+                        month_to_del = months_map[month_to_del - 1]
+                        if month_to_del in member_list[search_id]["history"]:
+                            p_status = member_list[search_id]["history"][month_to_del]["payment_type"]
+                            if p_status == "late":
                             
-                            member_list[search_id]["score"] -= 5        
-                    
-                        del member_list[search_id]["history"][month_to_del]
+                                member_list[search_id]["score"] += 10
+                                g_id = member_list[search_id]["gurantor_id"]
+                                if g_id in member_list:
+                                    member_list[g_id]["score"] += 3
+                            elif p_status == "ontime":
+                                
+                                member_list[search_id]["score"] -= 5        
                         
-                    
-                        member_list[search_id]["balance"] -= 5000
-                        total_collection -= 5000
+                            del member_list[search_id]["history"][month_to_del]
+                            
+                        
+                            member_list[search_id]["balance"] -= 5000
+                            total_collection -= 5000
 
-                        if not member_list[search_id]["history"]:
-                            member_list[search_id]["is_paid"] = False
-                        
-                        save_data()
-                        print(f"{month_to_del} entry is deleted succesfully ")
+                            if not member_list[search_id]["history"]:
+                                member_list[search_id]["is_paid"] = False
+                            
+                            save_data()
+                            print(f"{month_to_del} entry is deleted succesfully ")
+                        else:
+                            print("There is no entry of the",month_to_del )
                     else:
-                        print("There is no entry of the",month_to_del )
+                        print("Please enter a number bwtween 1 and 12")
                 else:
-                    print("Please enter a number bwtween 1 and 12")
+                    print(" THIS ENTRY IS NOT RECORDED ")
             else:
-                print(" THIS ENTRY IS NOT RECORDED ")
+                print("Member ID NOT FOUND ")
         else:
-            print("Member ID NOT FOUND ")
+            print("you must need to pay first because payout is send to the winner acount")        
     else:
         print(" search id should be in digit ") 
     print("\n" + "-"*40)           
@@ -238,8 +288,10 @@ def reset_system_for_new_committee():
     print("\n" + "-"*40)
     confirm=input("enter confirmation yes or no ").upper()
     if confirm.isalpha()and confirm== "YES":
-        global member_list
+        global member_list,total_collection,penalty_pool
         member_list = {}
+        penalty_pool=0
+        total_collection=0
         with open(filename, "w") as file:
             json.dump(member_list, file)
         print("Data reset succesfully")  
@@ -249,6 +301,7 @@ def reset_system_for_new_committee():
 
 
 def check_pending_alerts():
+    global total_collection,penalty_pool
     print("\n" + "-"*40)
     print("      PENDING PAYMENTS & RISK AUDIT")
     print("-"*40)
@@ -279,6 +332,9 @@ def check_pending_alerts():
             print(f"Warning Guarantor ({d['Member_Gurantor']}): \n If he dont pay till next month, the payment will be deducted from your account!")
         elif pending_count >= 5:
             refund_amount = d['balance'] * 0.5
+            penalty_pool+=d['balance'] * 0.5
+            total_collection-=d['balance'] 
+
             print(f"{d['Member_Name']} is removed from the committee. \n 50% amount is deducted as penalty because you have pending payments for more 5 months. \n Your remaining amount is: {refund_amount}")
             to_be_removed.append(m_id)
 
@@ -291,10 +347,14 @@ def check_pending_alerts():
     print("\n" + "*"*40)
 
 def show_summary_report():
-    global total_collection
+    global total_collection,penalty_pool
+    extra_share=0
     print("\n" + "="*35)
     print("      MONTHLY SUMMARY REPORT")
     print("="*35)
+    if len(member_list) > 0:
+        # Har banday ka extra hissa calculate karo
+        extra_share = penalty_pool / len(member_list)
     
     pending_members = 0
     
@@ -304,27 +364,33 @@ def show_summary_report():
             pending_members += 1
     
     print(f"Total Money Collected: Rs. {total_collection}")
+    print(f"Bonus per Member: Rs. {extra_share}")
     print(f"Members Pending: {pending_members}")
+    print(f'Penalty_pool:{penalty_pool}')
     print("="*35)
 
 load_data()
 while True:
+    print("="*35)
     choice=(input("""enter a number
-                     {1} for registering new member 
+                     ==========================================================
+                     {1} for registering new member                            
                      {2} for showing all the registered members 
                      {3} for record payments
                      {4} for delete record 
                      {5} for summary report 
                      {6}check pending payments
                      {7} for reset the previous data and start new committee
-                     {8} for exit the program  """))
+                     {8} for deleting registered member
+                     {9} for exit the program 
+                    =========================================================== """))
     if choice.isdigit():
         choice=int(choice)
         if choice==1:
             register_new_member()
         elif choice==2:
             show_registered_members()   
-        elif choice==8:
+        elif choice==9:
             print("thanks for using , system closed succesfully") 
             save_data()    
             break
@@ -337,8 +403,11 @@ while True:
         elif choice==6:
             check_pending_alerts() 
         elif choice==7:
-            reset_system_for_new_committee()                 
+            reset_system_for_new_committee()
+        elif choice==8:
+            delete_member()                    
         else:
             print("invalid choice ") 
     else:
         print("choice should be in digit")        
+print("="*35) 

@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinTech Committee Pro</title>
+    <title>FinTech Committee Pro | FAST-NUCES</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-        .navbar { background: #305496 !important; }
-        .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .status-done { background-color: #fffde7 !important; border-left: 5px solid #fbc02d !important; }
-        .table thead { background-color: #305496; color: white; }
+        /* SMOOTHING & ANTI-FLICKER FIX */
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; overflow-y: scroll !important; }
+        .modal-open { padding-right: 0 !important; }
+        
+        .navbar { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important; }
+        .card { border: none; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .status-done { background-color: #fffde7 !important; border-left: 6px solid #fbc02d !important; }
+        .penalty-card { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white; }
+        .payout-card { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #1e3c72; }
     </style>
 </head>
 <body class="pb-5">
 
-<nav class="navbar navbar-dark mb-4 shadow">
+<nav class="navbar navbar-dark mb-4 shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
-        <span class="navbar-brand h1 mb-0"><i class="fas fa-wallet me-2"></i> FAST Committee Mafia 💸 </span>
-        <a href="/export" class="btn btn-light btn-sm fw-bold shadow-sm">Export Excel</a>
+        <span class="navbar-brand fw-bold"><i class="fas fa-university me-2"></i> FAST Committee Mafia 💸</span>
+        <a href="/export" class="btn btn-light btn-sm fw-bold shadow-sm text-primary">Export Excel Report</a>
     </div>
 </nav>
 
@@ -36,48 +40,43 @@
 
     <div class="row g-4">
         <div class="col-lg-4">
-            <div class="card p-4 mb-4 bg-primary text-white text-center shadow-lg">
-                <h6 class="opacity-75 small">Payout Pool Balance</h6>
-                <h2 class="fw-bold">Rs. {{ total }}</h2>
+            <div class="card p-3 payout-card shadow-sm text-center">
+                <h6 class="opacity-75 small fw-bold text-uppercase">Payout Pool</h6>
+                <h2 class="fw-bold mb-0">Rs. {{ total }}</h2>
             </div>
 
-            <div class="card p-4 mb-4 shadow-sm">
-                <h6 class="text-primary fw-bold mb-3 small">REGISTER MEMBER</h6>
+            <div class="card p-3 penalty-card shadow-sm">
+                <h6 class="opacity-75 small fw-bold">PENALTY POOL (BONUS)</h6>
+                <h3 class="fw-bold mb-0">Rs. {{ penalty_pool }}</h3>
+                <hr class="my-2 opacity-25">
+                <p class="mb-0 small fw-bold">Bonus Per Head: Rs. {{ bonus }}</p>
+            </div>
+
+            <div class="card p-4 shadow-sm border-top border-4 border-success">
+                <h6 class="text-success fw-bold mb-3 small text-uppercase">Register Member</h6>
                 <form action="/register" method="POST">
                     <input type="text" name="name" class="form-control mb-2" placeholder="Full Name" required>
                     <input type="number" name="id" class="form-control mb-2" placeholder="Member ID" required>
                     <input type="text" name="g_name" class="form-control mb-2" placeholder="Guarantor Name" required>
                     <input type="number" name="g_id" class="form-control mb-2" placeholder="Guarantor ID" required>
-                    <button class="btn btn-success w-100 fw-bold mt-2 shadow-sm">Add Member</button>
+                    <button class="btn btn-success w-100 fw-bold shadow-sm mt-2">Add Member</button>
                 </form>
             </div>
 
-            <div class="card p-4 border-danger border-start border-4 shadow-sm">
+            <div class="card p-4 border-danger border-start border-4 shadow-sm opacity-75">
                 <h6 class="text-danger fw-bold small mb-2"><i class="fas fa-trash-alt me-2"></i>RESET SYSTEM</h6>
                 <form action="/reset" method="POST">
                     <input type="text" name="confirm" class="form-control form-control-sm mb-2 text-center" placeholder='Type "YES" to clear'>
-                    <button class="btn btn-outline-danger btn-sm w-100 fw-bold">Reset All Data</button>
+                    <button class="btn btn-outline-danger btn-sm w-100 fw-bold">Clear All Data</button>
                 </form>
             </div>
         </div>
 
         <div class="col-lg-8">
-            <div class="card p-4 mb-4">
-                {% set target = (members|length) * 5000 %}
-                {% set percent = (total / target * 100) if target > 0 else 0 %}
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="fw-bold text-muted small">COLLECTION PROGRESS</span>
-                    <span class="text-primary fw-bold">{{ percent|int }}%</span>
-                </div>
-                <div class="progress shadow-sm" style="height: 12px; border-radius: 10px;">
-                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: {{ percent }}%"></div>
-                </div>
-            </div>
-
-            <div class="card p-4 mb-4 border-start border-4 border-primary shadow-sm">
-                <h6 class="fw-bold text-primary mb-3 small">RECORD PAYMENT</h6>
+            <div class="card p-4 border-start border-4 border-primary shadow-sm mb-4">
+                <h6 class="fw-bold text-primary mb-3 small text-uppercase">Quick Payment Entry</h6>
                 <form action="/pay" method="POST" class="row g-2">
-                    <div class="col-md-3"><input type="number" name="m_id" class="form-control" placeholder="ID" required></div>
+                    <div class="col-md-3"><input type="number" name="m_id" class="form-control" placeholder="Member ID" required></div>
                     <div class="col-md-3"><input type="number" name="date" class="form-control" placeholder="Day (1-31)" required></div>
                     <div class="col-md-4">
                         <select name="month" class="form-select">
@@ -85,63 +84,36 @@
                             {% for i in range(1,13) %}<option value="{{i}}">{{ months[i-1] }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2"><button class="btn btn-primary w-100"><i class="fas fa-plus"></i></button></div>
+                    <div class="col-md-2"><button class="btn btn-primary w-100 fw-bold">Pay</button></div>
                 </form>
             </div>
 
-            <div class="card overflow-hidden shadow">
+            <div class="card overflow-hidden shadow-sm">
                 <table class="table table-hover align-middle mb-0 text-center">
                     <thead class="table-dark">
                         <tr>
-                            <th>ID</th><th class="text-start">Name</th><th>Score</th><th>Balance</th><th>Status</th><th>Details</th>
+                            <th>ID</th><th class="text-start">Name</th><th>Score</th><th>Paid (Flag)</th><th>Balance</th><th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for id, m in members.items() %}
                         <tr class="{{ 'status-done' if m.committee_status == 'Done' else '' }}">
-                            <td><strong>{{ id }}</strong></td>
-                            <td class="text-start fw-bold">{{ m.Member_Name }}</td>
-                            <td><span class="badge {{ 'bg-success' if m.score >= 100 else 'bg-danger' }} shadow-sm">{{ m.score }}</span></td>
-                            <td class="fw-bold text-dark">Rs. {{ m.balance }}</td>
-                            <td>
+                            <td>{{ id }}</td>
+                            <td class="text-start fw-bold">
+                                {{ m.Member_Name }}
                                 {% if m.committee_status == 'Done' %}
-                                    <span class="badge bg-warning text-dark border border-warning shadow-sm">PAID OUT</span>
-                                {% else %}
-                                    <span class="badge bg-light text-muted border">PENDING</span>
+                                <i class="fas fa-crown text-warning ms-1"></i>
                                 {% endif %}
                             </td>
+                            <td><span class="badge {{ 'bg-success' if m.score >= 100 else 'bg-danger' }}">{{ m.score }}</span></td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#m{{id}}">View</button>
-                                
-                                <div class="modal fade" id="m{{id}}" tabindex="-1">
-                                    <div class="modal-dialog modal-dialog-centered text-start">
-                                        <div class="modal-content shadow-lg">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title fw-bold text-primary">{{ m.Member_Name }}</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p class="mb-1 small text-muted">GUARANTOR: <strong>{{ m.Member_Gurantor }}</strong> (ID: {{ m.gurantor_id }})</p>
-                                                <hr>
-                                                <h6 class="fw-bold small">PAYMENT HISTORY</h6>
-                                                {% if m.history %}
-                                                    <div class="list-group list-group-flush shadow-sm">
-                                                        {% for mon, det in m.history.items() %}
-                                                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                                                            <span>{{ mon }} ({{ det.payment_type }})</span>
-                                                            <a href="/delete/{{ id }}/{{ mon }}" class="text-danger" onclick="return confirm('Entry delete karni hai?')"><i class="fas fa-trash"></i></a>
-                                                        </div>
-                                                        {% endfor %}
-                                                    </div>
-                                                {% else %}<p class="text-muted small">No payments recorded.</p>{% endif %}
-                                            </div>
-                                            <div class="modal-footer d-flex justify-content-between">
-                                                <a href="/manual_payout/{{ id }}" class="btn btn-warning btn-sm fw-bold">Mark as Paid Out</a>
-                                                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <span class="badge {{ 'bg-success' if m.is_paid else 'bg-secondary' }}">
+                                    {{ "YES" if m.is_paid else "NO" }}
+                                </span>
+                            </td>
+                            <td class="fw-bold">Rs. {{ m.balance }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#m{{id}}">View</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -151,6 +123,49 @@
         </div>
     </div>
 </div>
+
+{% for id, m in members.items() %}
+<div class="modal fade" id="m{{id}}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-primary">{{ m.Member_Name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1 small text-muted">GUARANTOR: <strong>{{ m.Member_Gurantor }}</strong> (ID: {{ m.gurantor_id }})</p>
+                <p class="mb-1 small text-muted">STATUS: <span class="badge {{ 'bg-warning text-dark' if m.committee_status == 'Done' else 'bg-secondary' }}">{{ m.committee_status }}</span></p>
+                {% if m.payout_date %}<p class="small text-success fw-bold">Payout Date: {{ m.payout_date }}</p>{% endif %}
+                <hr>
+                <h6 class="fw-bold small mb-2 text-uppercase">Payment History</h6>
+                <div class="list-group list-group-flush shadow-sm border rounded">
+                    {% if m.history %}
+                        {% for mon, det in m.history.items() %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="fas fa-check-circle {{ 'text-success' if det.payment_type == 'ontime' else 'text-warning' }} me-2"></i>
+                                {{ mon }} ({{ det.payment_type }})
+                            </span>
+                            <a href="/delete/{{ id }}/{{ mon }}" class="text-danger p-1" onclick="return confirm('Delete this month?')">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small p-3 mb-0">No history found.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between bg-light">
+                <a href="/delete_member/{{ id }}" class="btn btn-danger btn-sm fw-bold shadow-sm" onclick="return confirm('Member delete karne par total balance ka 50% penalty pool mein jayega. Continue?')">
+                    <i class="fas fa-user-minus me-1"></i> Delete Member
+                </a>
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

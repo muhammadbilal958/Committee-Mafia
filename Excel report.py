@@ -13,20 +13,28 @@ def generate_pro_report():
         print(f"Error: '{json_file}' nahi mili!")
         return
 
-    # 1. JSON Data Load
+    # 1. JSON Data Load (With Format Fix)
     with open(json_file, "r") as file:
         data = json.load(file)
-        # Ensure keys are integers
-        member_list = {int(k): v for k, v in data.items()}
+        
+        # FIX: Check format to avoid ValueError
+        if isinstance(data, dict) and "members" in data:
+            member_list = {int(k): v for k, v in data["members"].items()}
+            current_penalty_pool = data.get("penalty_pool", 0)
+        else:
+            member_list = {int(k): v for k, v in data.items()}
+            current_penalty_pool = 0
 
     # --- UPDATED PAYOUT STATUS LOGIC ---
     target_payout = len(member_list) * 5000
+    # Sirf unka balance jo abhi list mein hain
     total_received = sum(m.get('balance', 0) for m in member_list.values())
     done_count = sum(1 for m in member_list.values() if m.get('committee_status') == 'Done')
     
+    # Collection mein se payout nikal kar jo bacha
     current_pool = total_received - (done_count * target_payout)
 
-    # Agar pool target tak pahunch gaya hai, to winner select karo aur JSON update karo
+    # Winner selection logic
     if current_pool >= target_payout:
         winner_id = None
         max_score = -1001
@@ -42,12 +50,11 @@ def generate_pro_report():
             member_list[winner_id]['payout_date'] = datetime.now().strftime("%d-%b-%Y")
             print(f"🎊 AUTO-PAYOUT: {member_list[winner_id]['Member_Name']} is the winner!")
             
-            # JSON wapis save karo taake 'Done' permanent ho jaye
+            # Save back with new format
             with open(json_file, "w") as file:
-                json.dump(member_list, file, indent=4)
+                json.dump({"members": member_list, "penalty_pool": current_penalty_pool}, file, indent=4)
             
-            # Payout ke baad pool wapis zero ho jayega calculation mein
-            current_pool = 0
+            current_pool -= target_payout
 
     # 2. Excel Setup
     try:
@@ -55,17 +62,14 @@ def generate_pro_report():
             wb = load_workbook(excel_file)
         else:
             wb = Workbook()
-            wb.active.title = "Current_Committee"
+            if "Sheet" in wb.sheetnames: wb.remove(wb["Sheet"])
+            wb.create_sheet("Current_Committee")
     except PermissionError:
         print("\n[ERROR] Excel khuli hui hai! Band kar ke run karein.")
         return
 
-    ws = wb["Current_Committee"] if "Current_Committee" in wb.sheetnames else wb.active
-    ws.title = "Current_Committee"
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.value = None
-            cell.fill = PatternFill(fill_type=None)
+    ws = wb["Current_Committee"]
+    ws.delete_rows(1, ws.max_row + 10) # Purana data saaf karne ke liye
 
     # 3. Styles
     green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
@@ -73,6 +77,7 @@ def generate_pro_report():
     gold_fill = PatternFill(start_color="FFD700", end_color="FFD700", fill_type="solid")
     header_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
     pool_fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
+    penalty_fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
     
     months_map = ["Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"]
     headers = ["Rank", "Member Name", "Score", "Total Paid", "Status", "Payout Date"] + months_map + ["Pending", "Risk Alert"]
@@ -83,7 +88,7 @@ def generate_pro_report():
         cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center")
 
-    # 4. Data Insertion (Ranked by Score)
+    # 4. Data Insertion
     sorted_members = sorted(member_list.values(), key=lambda x: x['score'], reverse=True)
     current_month_idx = datetime.now().month
     last_row_idx = 1
@@ -108,8 +113,8 @@ def generate_pro_report():
                 row_data.append("-")
         
         alert = "Safe"
-        if 1 <= pending_count <= 2: alert = f"Pending: {pending_count}"
-        elif 3 <= pending_count <= 4: alert = "WARNING: Guarantor Alert!"
+        if 1 <= pending_count <= 2: alert = f"Late ({pending_count})"
+        elif 3 <= pending_count <= 4: alert = "CRITICAL: Guarantor Alert!"
         elif pending_count >= 5: alert = "TERMINATED"
         row_data.extend([pending_count, alert])
 
@@ -118,21 +123,34 @@ def generate_pro_report():
             cell.alignment = Alignment(horizontal="center")
             if val == "PAID": cell.fill = green_fill
             elif val == "UNPAID": cell.fill = red_fill
-            # Ab ye status Done hone par Row Gold karega
             if status_done == "Done" and col <= 6: cell.fill = gold_fill
         
         last_row_idx = index
 
-    # Summary Row
-    summary_row = last_row_idx + 2
-    ws.cell(row=summary_row, column=2, value="CURRENT POOL COLLECTION:").font = Font(bold=True)
-    pool_cell = ws.cell(row=summary_row, column=4, value=f"Rs. {current_pool}")
-    pool_cell.font = Font(bold=True, size=11)
-    pool_cell.fill = pool_fill
-    pool_cell.alignment = Alignment(horizontal="center")
+    # --- SUMMARY SECTION (Updated with Penalty Pool) ---
+    summary_start = last_row_idx + 3
+    
+    # Pool Collection Row
+    ws.cell(row=summary_start, column=2, value="CURRENT COMMITTEE COLLECTION:").font = Font(bold=True)
+    p_cell = ws.cell(row=summary_start, column=4, value=f"Rs. {current_pool}")
+    p_cell.fill = pool_fill
+    p_cell.font = Font(bold=True)
+
+    # Penalty Pool Row
+    ws.cell(row=summary_start + 1, column=2, value="PENALTY POOL (FOR BONUS):").font = Font(bold=True)
+    pen_cell = ws.cell(row=summary_start + 1, column=4, value=f"Rs. {current_penalty_pool}")
+    pen_cell.fill = penalty_fill
+    pen_cell.font = Font(bold=True)
+    
+    # Extra Share Info
+    if len(member_list) > 0:
+        share = current_penalty_pool / len(member_list)
+        ws.cell(row=summary_start + 2, column=2, value="ESTIMATED BONUS PER MEMBER:").font = Font(italic=True)
+        ws.cell(row=summary_start + 2, column=4, value=f"Rs. {round(share, 2)}").font = Font(italic=True)
 
     # Final Save
     wb.save(excel_file)
-    print(f"Excel Report Updated! Current Pool: Rs. {current_pool}")
+    print(f"✅ Excel Updated! Pool: Rs. {current_pool} | Penalty: Rs. {current_penalty_pool}")
 
-generate_pro_report()
+if __name__ == "__main__":
+    generate_pro_report()
